@@ -1,0 +1,5 @@
+---
+- name: Upload objects into Tackle2 Hub
+  hosts: localhost
+  gather_facts: false
+  tasks:

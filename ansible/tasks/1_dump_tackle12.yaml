@@ -2,6 +2,9 @@
 - name: Dump tackle 1.2 objects
   hosts: localhost
   gather_facts: false
+  vars:
+    tacke_url: 
+    tackle_token: ""
   tasks:
 
   - name: Prepare data directory
@@ -15,16 +18,16 @@
   - name: Dump tackle 1.2 resources
     loop:
       - application-inventory/application
-    uri:
-      url: https://tackle-tackle.apps.mta01..../api/{{ item }}
+    get_url:
+      url: "{{ tacke_url }}/api/{{ item }}"
       dest: mig-data-12/{{ item }}
-      method: GET
+#      method: GET
       validate_certs: no
-      return_content: yes
-      body_format: json
+#      return_content: yes
+#      body_format: json
       headers:
         Content-Type: "application/json"
-        Authorization: "Bearer ..."
+        Authorization: "Bearer {{ tackle_token }}"
     register: res
 
   - name: Debug output
