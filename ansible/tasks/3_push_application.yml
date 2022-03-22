@@ -1,0 +1,17 @@
+---
+  - name: Push application
+    vars:
+      app: {{  }}
+    uri:
+      url: "{{ tacke2_url }}/api/{{ item }}"
+      method: GET
+      validate_certs: no
+      body_format: json
+      headers:
+        Content-Type: "application/json"
+        Authorization: "Bearer {{ tackle2_token }}"
+    register: res
+
+  - name: Debug output
+    debug: 
+      var: res

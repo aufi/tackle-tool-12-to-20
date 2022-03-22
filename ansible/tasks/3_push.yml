@@ -1,0 +1,12 @@
+---
+- name: Upload objects into Tackle2 Hub
+  hosts: localhost
+  gather_facts: false
+  vars:
+    tacke_url: ""
+    tackle_token: ""
+  tasks:
+
+  - name: Iterate services to upload their objects to Tackle2 Hub - Applications
+    loop: "{{ lookup('fileglob', 'data/transformed/application-inventory/application/*', wantlist=True) }}"
+    include_tasks: 3_push_application.yml

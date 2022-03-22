@@ -5,5 +5,5 @@
   tasks:
 
   - name: Iterate services to transform their objects - Applications
-    loop: "{{ lookup('fileglob', 'mig-data-12/application-inventory/*', wantlist=True) }}"
-    include_tasks: 2_transform_application.yaml
+    loop: "{{ lookup('fileglob', 'data/dump/application-inventory/*', wantlist=True) }}"
+    include_tasks: 2_transform_application_list.yaml

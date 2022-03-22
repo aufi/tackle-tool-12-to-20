@@ -9,8 +9,14 @@
 
   - name: Prepare data directory
     loop:
-      - mig-data-12
-      - mig-data-12/application-inventory
+      - data
+      # Dump contains files with list of records (dump list of objects)
+      - data/dump
+      - data/dump/application-inventory
+      # Transformed data contains directories with list of files each representing single record (create one-by-one)
+      - data/transformed
+      - data/transformed/application-inventory
+      - data/transformed/application-inventory/application
     file:
       path: "{{ item }}"
       state: directory
@@ -20,7 +26,7 @@
       - application-inventory/application
     get_url:
       url: "{{ tacke_url }}/api/{{ item }}"
-      dest: mig-data-12/{{ item }}
+      dest: data/dump/{{ item }}
 #      method: GET
       validate_certs: no
 #      return_content: yes

@@ -1,0 +1,5 @@
+---
+- name: "Transforming application {{ app.id }} {{ app.name }}"
+  template:
+    src: "templates/application-inventory/application.yml.j2"
+    dest: "data/transformed/application-inventory/application/{{ app.id }}"

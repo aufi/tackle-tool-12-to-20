@@ -1,7 +1,0 @@
----
-- name: Transform application
-  vars:
-    app: "{{ lookup(file, item) | from_json }}"
-  template:
-    src: {{  }}
-    dest: {{  }}
