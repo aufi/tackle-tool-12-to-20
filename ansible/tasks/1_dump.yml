@@ -25,7 +25,7 @@
     loop:
       - application-inventory/application
     get_url:
-      url: "{{ tacke_url }}/api/{{ item }}"
+      url: "{{ tacke1_url }}/api/{{ item }}"
       dest: data/dump/{{ item }}
 #      method: GET
       validate_certs: no
@@ -33,7 +33,7 @@
 #      body_format: json
       headers:
         Content-Type: "application/json"
-        Authorization: "Bearer {{ tackle_token }}"
+        Authorization: "Bearer {{ tackle1_token }}"
     register: res
 
   - name: Debug output
