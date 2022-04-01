@@ -6,8 +6,24 @@ import requests
 ###############################################################################
 
 dataDir = "./mig-data"
-expectedDirs = ["dump", "dump/application-inventory", "transformed", "transformed/application-inventory"]
-apiObjects = ["application-inventory/application"]
+expectedDirs = ["dump", "dump/application-inventory", "dump/controls", "dump/pathfinder", "transformed", "transformed/application-inventory", "transformed/controls", "transformed/pathfinder"]
+apiObjects = ["application-inventory/application", "controls/stakeholder", "controls/business-service"] #], "pathfinder/assessments/confidence"]
+
+class Application:
+    pass
+
+class Assessment:
+    pass
+
+class AssessmentRisk:
+    pass
+
+class Stakeholder:
+    pass
+
+applications = []
+
+
 
 ###############################################################################
 
@@ -23,6 +39,7 @@ def prepareDirs():
         print("Data directory already exists, using %s" % dataDir)
     else:
       print("Creating data directories at %s" % dataDir)
+      os.mkdir(dataDir)
       for dirName in expectedDirs:
           os.mkdir(os.path.join(dataDir, dirName))
 
@@ -32,8 +49,11 @@ def checkConfig(expected_vars):
             print("ERROR: Missing required environment variable %s, define it first." % varKey)
             exit(1)
 
-def apiGetJSON(url, token):
-    r = requests.get(url, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)  # add pagination?
+def apiJSON(url, token, data=None):
+    if data:
+        r = requests.post(url, json.dumps(data), data, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)
+    else:
+        r = requests.get(url, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)  # add pagination?
     if not r.ok:
         print("ERROR: API request failed with status %d for %s" % (r.status_code, url))
         exit(1)
@@ -61,7 +81,7 @@ def dumpTackle1():
     prepareDirs()
     checkConfig(["TACKLE1_URL", "TACKLE1_TOKEN"])
     for path in apiObjects:
-        jsonData = apiGetJSON(os.environ.get('TACKLE1_URL') + "/api/" + path, os.environ.get('TACKLE1_TOKEN'))
+        jsonData = apiJSON(os.environ.get('TACKLE1_URL') + "/api/" + path, os.environ.get('TACKLE1_TOKEN'))
         saveJSON(os.path.join(dataDir, "dump", path), jsonData['_embedded'][path.rsplit('/')[-1]])  # get rid of object type name from jsonData
 
 def transformApplications():
@@ -69,12 +89,33 @@ def transformApplications():
     apps1 = loadDump(os.path.join(dataDir, "dump", "application-inventory", "application.json"))
     apps2 = []
     for app1 in apps1:
-        # Prepare transformed application dict
-        app2 = {}
-        app2['name'] = app1['name']
-        app2['description'] = app1['description']
+        # Application object
+        app2 = Application()
+        app2.id = app1['id']
+        app2.name = app1['name']
+        app2.description = app1['description']
         apps2.append(app2)
+        # Application-related objects - assessment-risk
+        appFilter = dict()
+        appFilter['applicationId'] = app2.id
+        assessmentRisk = apiJSON(os.environ.get('TACKLE1_URL') + "/api/pathfinder/assessments/assessment-risk", os.environ.get('TACKLE1_TOKEN'), appFilter)
+        # tady načítat další související věci a rovnou z nich dělat data pro import
     saveJSON(os.path.join(dataDir, "transformed", "application-inventory", "application"), apps2)
+    #saveJSON(os.path.join(dataDir, "transformed", "application-inventory", "assessment-risk.json"), assessmentRisk)
+
+def transformControls():
+    print("Transforming Controls stakeholders")
+    stakeholders1 = loadDump(os.path.join(dataDir, "dump", "controls", "stakeholder.json"))
+    stakeholders2 = []
+    for sh1 in stakeholders1:
+        sh2 = Application()
+        sh2.id = sh1['id']
+        sh2.name = sh1['displayName']
+        sh2.email = sh1['email']
+        stakeholders2.append(sh1)
+        
+    saveJSON(os.path.join(dataDir, "transformed", "controls", "stakeholder.json"), stakeholders2)
+
 
 def uploadTackle2():
     pass
@@ -86,13 +127,15 @@ print("Starting Tackle 1.2 -> 2 data migration tool")
 # Dump steps
 if cmdWanted(args, "dump"):
     dumpTackle1()
-
-# Transformation steps
-if cmdWanted(args, "transform"):
     transformApplications()
+    transformControls()
+
 
 # Upload steps
 if cmdWanted(args, "upload"):
     uploadTackle2()
 
 print("Done.")
+
+###############################################################################
+
