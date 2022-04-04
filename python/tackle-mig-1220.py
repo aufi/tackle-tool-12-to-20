@@ -9,22 +9,6 @@ dataDir = "./mig-data"
 expectedDirs = ["dump", "dump/application-inventory", "dump/controls", "dump/pathfinder", "transformed", "transformed/application-inventory", "transformed/controls", "transformed/pathfinder"]
 apiObjects = ["application-inventory/application", "controls/stakeholder", "controls/business-service"] #], "pathfinder/assessments/confidence"]
 
-class Application:
-    pass
-
-class Assessment:
-    pass
-
-class AssessmentRisk:
-    pass
-
-class Stakeholder:
-    pass
-
-applications = []
-
-
-
 ###############################################################################
 
 parser = argparse.ArgumentParser(description='Migrate data from Tackle 1.2 to Tackle 2.')
@@ -76,6 +60,29 @@ def cmdWanted(args, step):
 
 ###############################################################################
 
+class Tackle2Import:
+    TYPES = ['tags', 'identities', 'jobfunctions', 'stakeholdergroups', 'stakeholders', 'businessservices', 'applications', 'reviews']  # buckets, proxies
+    def __init__(self, path):
+        self.path = path
+        self.data = dict()
+        for t in self.TYPES:
+            self.data[t] = []
+
+    def add(self, type, item):
+        self.data[type].append(item)
+
+    def store(self):
+        for t in self.TYPES:
+            saveJSON(os.path.join(self.path, t), self.data[t])
+
+    def load(self):
+        pass
+
+class Tackle2Object:
+    pass
+
+###############################################################################
+
 def dumpTackle1():
     print("Dumping Tackle 1.2 objects")
     prepareDirs()
@@ -118,17 +125,25 @@ def transformControls():
 
 
 def uploadTackle2():
-    pass
+    print("Uploading Applications")
+    apps = loadDump(os.path.join(dataDir, "dump", "application-inventory", "application.json"))
+    for app in apps:
+        apiJSON(os.environ.get('TACKLE2_URL') + "/api/application", os.environ.get('TACKLE2_TOKEN'), app)
 
 ###############################################################################
 
 print("Starting Tackle 1.2 -> 2 data migration tool")
+
+# Tackle 2.0 objects to be imported
+tackle2import = Tackle2Import(dataDir)
 
 # Dump steps
 if cmdWanted(args, "dump"):
     dumpTackle1()
     transformApplications()
     transformControls()
+
+    tackle2import.store()
 
 
 # Upload steps
