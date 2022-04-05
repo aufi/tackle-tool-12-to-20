@@ -6,8 +6,8 @@ import requests
 ###############################################################################
 
 dataDir = "./mig-data"
-expectedDirs = ["dump", "dump/application-inventory", "dump/controls", "dump/pathfinder", "transformed", "transformed/application-inventory", "transformed/controls", "transformed/pathfinder"]
-apiObjects = ["application-inventory/application", "controls/stakeholder", "controls/business-service"] #], "pathfinder/assessments/confidence"]
+#expectedDirs = ["dump", "dump/application-inventory", "dump/controls", "dump/pathfinder", "transformed", "transformed/application-inventory", "transformed/controls", "transformed/pathfinder"]
+#apiObjects = ["application-inventory/application", "controls/stakeholder", "controls/business-service"] #], "pathfinder/assessments/confidence"]
 
 ###############################################################################
 
@@ -18,14 +18,12 @@ args = parser.parse_args()
 
 ###############################################################################
 
-def prepareDirs():
+def ensureDataDir(dataDir):
     if os.path.isdir(dataDir):
         print("Data directory already exists, using %s" % dataDir)
     else:
       print("Creating data directories at %s" % dataDir)
       os.mkdir(dataDir)
-      for dirName in expectedDirs:
-          os.mkdir(os.path.join(dataDir, dirName))
 
 def checkConfig(expected_vars):
     for varKey in expected_vars:
@@ -60,20 +58,79 @@ def cmdWanted(args, step):
 
 ###############################################################################
 
-class Tackle2Import:
+class Tackle12Import:
     TYPES = ['tags', 'identities', 'jobfunctions', 'stakeholdergroups', 'stakeholders', 'businessservices', 'applications', 'reviews']  # buckets, proxies
-    def __init__(self, path):
-        self.path = path
-        self.data = dict()
+
+    def __init__(self, dataDir, tackle1Url, tackle1Token):
+        self.dataDir      = dataDir
+        self.tackle1Url   = tackle1Url
+        self.tackle1Token = tackle1Token
+        self.data         = dict()
         for t in self.TYPES:
             self.data[t] = []
+
+    # Reach Tackle 1.2 API and gather all application-inventory related objects
+    def dumpTackle1ApplicationInventory(self):
+        collection = apiJSON(self.tackle1Url + "/api/application-inventory/application", self.tackle1Token)
+        for app1 in collection:
+            # Temp holder for tags
+            tags = []
+            # Prepare Tags
+            for tag1 in app1['tags']:
+                tag             = Tackle2Object()
+                tag.id          = tag1['id']
+                #shg.createUser  = shg1['createUser']
+                #shg.updateUser  = shg1['updateUser']
+                tag.name        = tag1['name']
+                self.add('tags', tag)
+                tags.append(tag)
+            # Prepare Application
+            app             = Tackle2Object()
+            app.id          = app1['id']
+            app.createUser  = app1['createUser']
+            app.updateUser  = app1['updateUser']
+            app.name        = app1['name']
+            app.description = app1['description']
+            # app.businessService = {}
+            app.tags        = tags
+            self.add('applications', app)
+
+    # Reach Tackle 1.2 API and gather all control related objects
+    def dumpTackle1Controls(self):
+        collection = apiJSON(self.tackle1Url + "/api/controls/stakeholder", self.tackle1Token)
+        for sh1 in collection:
+            # Temp holder for stakeholder's groups
+            shgs = []
+            # Prepare StakeholderGroups
+            for shg1 in sh1['stakeholderGroups']:
+                shg             = Tackle2Object()
+                shg.id          = shg1['id']
+                shg.createUser  = shg1['createUser']
+                shg.updateUser  = shg1['updateUser']
+                shg.name        = shg1['name']
+                shg.description = shg1['description']
+                # +Stakeholders arr/refs?
+                self.add('stakeholdergroups', shg)
+                shgs.append(shg)
+            # Prepare StakeHolder
+            sh            = Tackle2Object()
+            sh.id         = sh1['id']
+            sh.createUser = sh1['createUser']
+            sh.updateUser = sh1['updateUser']
+            sh.name       = sh1['name']
+            sh.email      = sh1['email']
+            # sh.businessServices = []
+            sh.groups     = shgs
+            # sh.jobFunction = {}
+            self.add('stakeholders', sh)
 
     def add(self, type, item):
         self.data[type].append(item)
 
     def store(self):
+        ensureDataDir(self.dataDir)
         for t in self.TYPES:
-            saveJSON(os.path.join(self.path, t), self.data[t])
+            saveJSON(os.path.join(self.dataDir, t), self.data[t])
 
     def load(self):
         pass
@@ -110,7 +167,7 @@ def transformApplications():
     saveJSON(os.path.join(dataDir, "transformed", "application-inventory", "application"), apps2)
     #saveJSON(os.path.join(dataDir, "transformed", "application-inventory", "assessment-risk.json"), assessmentRisk)
 
-def transformControls():
+def dumpControls():
     print("Transforming Controls stakeholders")
     stakeholders1 = loadDump(os.path.join(dataDir, "dump", "controls", "stakeholder.json"))
     stakeholders2 = []
@@ -135,20 +192,18 @@ def uploadTackle2():
 print("Starting Tackle 1.2 -> 2 data migration tool")
 
 # Tackle 2.0 objects to be imported
-tackle2import = Tackle2Import(dataDir)
+tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), os.environ.get('TACKLE1_TOKEN'))
 
 # Dump steps
 if cmdWanted(args, "dump"):
-    dumpTackle1()
-    transformApplications()
-    transformControls()
-
-    tackle2import.store()
+    tackle12import.dumpTackle1Controls()
+    tackle12import.store()
 
 
 # Upload steps
 if cmdWanted(args, "upload"):
-    uploadTackle2()
+    tackle12import.load()
+    # tackle12import.uploadTackle2()
 
 print("Done.")
 
