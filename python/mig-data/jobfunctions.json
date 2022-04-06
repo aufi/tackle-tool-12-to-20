@@ -1,0 +1,37 @@
+[
+    {
+        "id": 8,
+        "createUser": "<shipped-data>",
+        "updateUser": "<shipped-data>",
+        "name": "Project Manager",
+        "stakeholders": []
+    },
+    {
+        "id": 9,
+        "createUser": "<shipped-data>",
+        "updateUser": "<shipped-data>",
+        "name": "Service Owner",
+        "stakeholders": []
+    },
+    {
+        "id": 10,
+        "createUser": "<shipped-data>",
+        "updateUser": "<shipped-data>",
+        "name": "Solution Architect",
+        "stakeholders": []
+    },
+    {
+        "id": 11,
+        "createUser": "<shipped-data>",
+        "updateUser": "<shipped-data>",
+        "name": "System Administrator",
+        "stakeholders": []
+    },
+    {
+        "id": 12,
+        "createUser": "<shipped-data>",
+        "updateUser": "<shipped-data>",
+        "name": "Test Analyst / Manager",
+        "stakeholders": []
+    }
+]

@@ -1,4 +1,5 @@
 import argparse
+import copy
 import json
 import os
 import requests
@@ -20,9 +21,10 @@ args = parser.parse_args()
 
 def ensureDataDir(dataDir):
     if os.path.isdir(dataDir):
-        print("Data directory already exists, using %s" % dataDir)
+        pass
+        # print("Data directory already exists, using %s" % dataDir)
     else:
-      print("Creating data directories at %s" % dataDir)
+      # print("Creating data directories at %s" % dataDir)
       os.mkdir(dataDir)
 
 def checkConfig(expected_vars):
@@ -31,7 +33,7 @@ def checkConfig(expected_vars):
             print("ERROR: Missing required environment variable %s, define it first." % varKey)
             exit(1)
 
-def apiJSON(url, token, data=None):
+def apiJSON(url, token, data=None): # TODO: currently is specific to Tackle1 API only
     if data:
         r = requests.post(url, json.dumps(data), data, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)
     else:
@@ -39,7 +41,7 @@ def apiJSON(url, token, data=None):
     if not r.ok:
         print("ERROR: API request failed with status %d for %s" % (r.status_code, url))
         exit(1)
-    return json.loads(r.text)
+    return json.loads(r.text)['_embedded'][url.rsplit('/')[-1]] # unwrap Tackle1 JSON response (e.g. _embedded -> application -> [{...}])
 
 def loadDump(path):
     data = open(path)
@@ -47,7 +49,7 @@ def loadDump(path):
 
 def saveJSON(path, jsonData):
     dumpFile = open(path + ".json", 'w')
-    dumpFile.write(json.dumps(jsonData, indent=4))
+    dumpFile.write(json.dumps(jsonData, indent=4, default=vars))
     dumpFile.close()
 
 def cmdWanted(args, step):
@@ -77,18 +79,12 @@ class Tackle12Import:
             tags = []
             # Prepare Tags
             for tag1 in app1['tags']:
-                tag             = Tackle2Object()
-                tag.id          = tag1['id']
-                #shg.createUser  = shg1['createUser']
-                #shg.updateUser  = shg1['updateUser']
+                tag             = Tackle2Object(tag1)
                 tag.name        = tag1['name']
                 self.add('tags', tag)
                 tags.append(tag)
             # Prepare Application
-            app             = Tackle2Object()
-            app.id          = app1['id']
-            app.createUser  = app1['createUser']
-            app.updateUser  = app1['updateUser']
+            app             = Tackle2Object(app1)
             app.name        = app1['name']
             app.description = app1['description']
             # app.businessService = {}
@@ -104,26 +100,30 @@ class Tackle12Import:
             shgs = []
             # Prepare StakeholderGroups
             for shg1 in sh1['stakeholderGroups']:
-                shg             = Tackle2Object()
-                shg.id          = shg1['id']
-                shg.createUser  = shg1['createUser']
-                shg.updateUser  = shg1['updateUser']
+                shg             = Tackle2Object(shg)
                 shg.name        = shg1['name']
                 shg.description = shg1['description']
                 # +Stakeholders arr/refs?
                 self.add('stakeholdergroups', shg)
                 shgs.append(shg)
             # Prepare StakeHolder
-            sh            = Tackle2Object()
-            sh.id         = sh1['id']
-            sh.createUser = sh1['createUser']
-            sh.updateUser = sh1['updateUser']
-            sh.name       = sh1['name']
+            sh            = Tackle2Object(sh1)
+            sh.name       = sh1['displayName']
             sh.email      = sh1['email']
             # sh.businessServices = []
             sh.groups     = shgs
             # sh.jobFunction = {}
             self.add('stakeholders', sh)
+        
+        ### STAKEHOLDER GROUPS ###
+        collection = apiJSON(self.tackle1Url + "/api/controls/stakeholder-group", self.tackle1Token)
+        for shg1 in collection:
+            # Prepare StakeholderGroup
+            shg             = Tackle2Object(shg1)
+            shg.name        = shg1['name']
+            shg.description = shg1['description']
+            # +Stakeholders arr/refs?
+            self.add('stakeholdergroups', shg)
 
         ### JOB FUNCTION ###
         collection = apiJSON(self.tackle1Url + "/api/controls/job-function", self.tackle1Token)
@@ -132,11 +132,8 @@ class Tackle12Import:
             shs = []
             # Prepare JobFunction's Stakeholders
             for sh1 in jf1['stakeholders']:
-                sh             = Tackle2Object()
-                sh.id          = sh1['id']
-                sh.createUser  = sh1['createUser']
-                sh.updateUser  = sh1['updateUser']
-                sh.name        = sh1['name']
+                sh             = Tackle2Object(sh1)
+                sh.name        = sh1['displayName']
                 sh.email       = sh1['email']
                 self.add('stakeholders', sh)
                 shs.append(sh)
@@ -153,10 +150,7 @@ class Tackle12Import:
         collection = apiJSON(self.tackle1Url + "/api/controls/business-service", self.tackle1Token)
         for bs1 in collection:
             # Prepare JobFunction
-            bs              = Tackle2Object()
-            bs.id           = bs1['id']
-            bs.createUser   = bs1['createUser']
-            bs.updateUser   = bs1['updateUser']
+            bs              = Tackle2Object(bs1)
             bs.name         = bs1['name']
             bs.description  = bs1['description']
             # bs.owner        = bs1['owner'] + foreign key object
@@ -169,30 +163,27 @@ class Tackle12Import:
             tags = []
             # Prepare TagTypes's Tags
             for tag1 in tt1['tags']:
-                tag             = Tackle2Object()
-                tag.id          = tag1['id']
-                tag.createUser  = tag1['createUser']
-                tag.updateUser  = tag1['updateUser']
+                tag             = Tackle2Object(tag1)
                 tag.name        = tag1['name']
                 # TagType is injected from tagType processing few lines below
-                self.add('tags', sh)
+                self.add('tags', tag)
                 tags.append(tag)
             # Prepare TagType
-            tt            = Tackle2Object()
-            tt.id         = tt1['id']
-            tt.createUser = tt1['createUser']
-            tt.updateUser = tt1['updateUser']
+            tt            = Tackle2Object(tt1)
             tt.name       = tt1['name']
             tt.colour     = tt1['colour']
             tt.rank       = tt1['rank']
-            tt.username   = tt1['createUser'] # Is there another user relevant?
+            tt.username   = tt1['createUser'] # Is there another relevant user?
             for tag in tags:
-                tag.tagType = tt
+                tag.tagType = copy.deepcopy(tt)
             tt.tags = tags
             self.add('tagtypes', tt)
 
     def add(self, type, item):
-        # TODO: skip if is already present
+        for existingItem in self.data[type]:
+            if item.id == existingItem.id:
+                # The item is already present, skipping
+                return
         self.data[type].append(item)
 
     def store(self):
@@ -207,7 +198,11 @@ class Tackle12Import:
                 self.add()
 
 class Tackle2Object:
-    pass
+    def __init__(self, initAttrs = {}):
+        if initAttrs:
+            self.id         = initAttrs['id']
+            self.createUser = initAttrs['createUser']
+            self.updateUser = initAttrs['updateUser']
 
 ###############################################################################
 
@@ -267,13 +262,18 @@ tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), os.envir
 
 # Dump steps
 if cmdWanted(args, "dump"):
+    print("Dumping Tackle1.2 objects..")
+    tackle12import.dumpTackle1ApplicationInventory()
     tackle12import.dumpTackle1Controls()
+    print("Writing JSON data files into %s.." % dataDir)
     tackle12import.store()
 
 
 # Upload steps
 if cmdWanted(args, "upload"):
+    print("Loading JSON data files from %s.." % dataDir)
     tackle12import.load()
+    print("Uploading data to Tackle2..")
     # tackle12import.uploadTackle2()
 
 print("Done.")
