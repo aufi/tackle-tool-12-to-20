@@ -59,7 +59,7 @@ def cmdWanted(args, step):
 ###############################################################################
 
 class Tackle12Import:
-    TYPES = ['tags', 'identities', 'jobfunctions', 'stakeholdergroups', 'stakeholders', 'businessservices', 'applications', 'reviews']  # buckets, proxies
+    TYPES = ['tags', 'tagtypes', 'identities', 'jobfunctions', 'stakeholdergroups', 'stakeholders', 'businessservices', 'applications', 'reviews']  # buckets, proxies
 
     def __init__(self, dataDir, tackle1Url, tackle1Token):
         self.dataDir      = dataDir
@@ -97,6 +97,7 @@ class Tackle12Import:
 
     # Reach Tackle 1.2 API and gather all control related objects
     def dumpTackle1Controls(self):
+        ### STAKEHOLDER ###
         collection = apiJSON(self.tackle1Url + "/api/controls/stakeholder", self.tackle1Token)
         for sh1 in collection:
             # Temp holder for stakeholder's groups
@@ -124,7 +125,74 @@ class Tackle12Import:
             # sh.jobFunction = {}
             self.add('stakeholders', sh)
 
+        ### JOB FUNCTION ###
+        collection = apiJSON(self.tackle1Url + "/api/controls/job-function", self.tackle1Token)
+        for jf1 in collection:
+            # Temp holder for stakeholders
+            shs = []
+            # Prepare JobFunction's Stakeholders
+            for sh1 in jf1['stakeholders']:
+                sh             = Tackle2Object()
+                sh.id          = sh1['id']
+                sh.createUser  = sh1['createUser']
+                sh.updateUser  = sh1['updateUser']
+                sh.name        = sh1['name']
+                sh.email       = sh1['email']
+                self.add('stakeholders', sh)
+                shs.append(sh)
+            # Prepare JobFunction
+            jf              = Tackle2Object()
+            jf.id           = jf1['id']
+            jf.createUser   = jf1['createUser']
+            jf.updateUser   = jf1['updateUser']
+            jf.name         = jf1['role']
+            jf.stakeholders = shs
+            self.add('jobfunctions', jf)
+
+        ### BUSINESS SERVICE ###
+        collection = apiJSON(self.tackle1Url + "/api/controls/business-service", self.tackle1Token)
+        for bs1 in collection:
+            # Prepare JobFunction
+            bs              = Tackle2Object()
+            bs.id           = bs1['id']
+            bs.createUser   = bs1['createUser']
+            bs.updateUser   = bs1['updateUser']
+            bs.name         = bs1['name']
+            bs.description  = bs1['description']
+            # bs.owner        = bs1['owner'] + foreign key object
+            self.add('businessservices', bs)
+
+        ### TAG TYPES & TAGS ###
+        collection = apiJSON(self.tackle1Url + "/api/controls/tag-type", self.tackle1Token)
+        for tt1 in collection:
+            # Temp holder for tags
+            tags = []
+            # Prepare TagTypes's Tags
+            for tag1 in tt1['tags']:
+                tag             = Tackle2Object()
+                tag.id          = tag1['id']
+                tag.createUser  = tag1['createUser']
+                tag.updateUser  = tag1['updateUser']
+                tag.name        = tag1['name']
+                # TagType is injected from tagType processing few lines below
+                self.add('tags', sh)
+                tags.append(tag)
+            # Prepare TagType
+            tt            = Tackle2Object()
+            tt.id         = tt1['id']
+            tt.createUser = tt1['createUser']
+            tt.updateUser = tt1['updateUser']
+            tt.name       = tt1['name']
+            tt.colour     = tt1['colour']
+            tt.rank       = tt1['rank']
+            tt.username   = tt1['createUser'] # Is there another user relevant?
+            for tag in tags:
+                tag.tagType = tt
+            tt.tags = tags
+            self.add('tagtypes', tt)
+
     def add(self, type, item):
+        # TODO: skip if is already present
         self.data[type].append(item)
 
     def store(self):
@@ -133,7 +201,10 @@ class Tackle12Import:
             saveJSON(os.path.join(self.dataDir, t), self.data[t])
 
     def load(self):
-        pass
+        for t in self.TYPES:
+            dictCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
+            for obj in dictCollection:
+                self.add()
 
 class Tackle2Object:
     pass
