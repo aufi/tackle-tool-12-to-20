@@ -55,6 +55,7 @@ def cmdWanted(args, step):
 ###############################################################################
 
 class Tackle12Import:
+    # TYPES order matters for import/upload to Tackle2
     TYPES = ['tags', 'tagtypes', 'identities', 'jobfunctions', 'stakeholdergroups', 'stakeholders', 'businessservices', 'applications', 'reviews']  # buckets, proxies
 
     def __init__(self, dataDir, tackle1Url, tackle1Token):

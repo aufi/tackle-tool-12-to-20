@@ -1,34 +1,53 @@
-# tackle-tool-12-to-20
+# tackle-tool-12-to-20 (python)
 
-A tool migrating Konveyor Tackle 1.2 data into Tackle 2.0. For more details about Tackle, see https://github.com/konveyor/tackle-documentation
+A tool migrating Konveyor Tackle 1.2 data into Tackle 2.0 written in Python. For more details about Tackle, see https://github.com/konveyor/tackle-documentation
 
 Under initial development
 
-## Migration process
+## Usage
 
-1. Dump Tackle 1.2 resources from its API (needed to provide API URL and secret token)
-2. Load local dump of Tackle 1.2 objects and transform it to the Tackle2 Hub API format
-3. Push transformed data into Tackle2 Hub API (needed to provide API URL and secret token)
-4. ? (If needed create local mapping of new object IDs allowing keep relations without 1.2 IDs in 2.0 API) and upload objects to tackle 2.0 in phases
+```
+$ python tackle-mig-1220.py --help
+usage: tackle-mig-1220.py [-h] [steps ...]
 
+Migrate data from Tackle 1.2 to Tackle 2.
 
-## Development roadmap
+positional arguments:
+  steps       One or more steps of migration that should be executed (dump and upload by default), options: dump upload
 
-- Initial development&PoC
-  - <del>Dump single object type from Tackle 1.2 (Application)</del>
-  - <del>Transform dumped object into minimal valid format to be created in Tackle 2.0 (Application)</del>
-  - Upload transformed object into Tackle 2.0 (Application)
-- Extending to support real objects from Tackle 1.2
-  - Full capability to migrate Application
-  - Cover objects from all three Tackle 1.2 components
-    - application-inventory
-    - controls
-    - reports / pathfinder
+options:
+  -h, --help  show this help message and exit
+```
 
-Open questions
-- 1.2 vs 2.0 objects mapping ("multisteps" creating objects storing their IDs?)
-- Longer time valid Tackle 1.2 token?
+API endpoints and tokens should be set in the environment or source an env file.
 
-## Notes
+```
+export TACKLE1_URL=https://tackle-tackle.apps.mta01.cluster.local
+export TACKLE1_TOKEN=eyJhbGciOiJSUzI1Ni...
+export TACKLE2_URL=https://tackle-konveyor-tackle.apps.cluster.local
+export TACKLE2_TOKEN=axJsbDcxLisdWDWfca...
+```
 
-jinja templates with variables to push data to Tackle 2 API, makefile&bash seems to be too messy, trying ansible to provide some level of structure of the project and open-ness for customizations and debugging
+### Sample command output
+
+```
+$ . config-vars && python tackle-mig-1220.py dump
+Starting Tackle 1.2 -> 2 data migration tool
+Dumping Tackle1.2 objects..
+/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe.rhcloud.com'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
+  warnings.warn(
+/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe.rhcloud.com'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
+  warnings.warn(
+/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe.rhcloud.com'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
+  warnings.warn(
+/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe.rhcloud.com'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
+  warnings.warn(
+/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe.rhcloud.com'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
+  warnings.warn(
+/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe.rhcloud.com'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
+  warnings.warn(
+Writing JSON data files into ./mig-data..
+Done.
+```
+
+Sample migration JSON dump files are available in [mig-data directory](mig-data).

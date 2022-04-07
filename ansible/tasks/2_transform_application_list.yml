@@ -1,8 +1,0 @@
----
-- name: Transform applications
-  vars:
-    apps: "{{ lookup('file', item) | from_json }}"
-  loop: "{{ apps._embedded.application }}"
-  loop_control:
-    loop_var: app
-  include_tasks: 2_transform_application.yaml

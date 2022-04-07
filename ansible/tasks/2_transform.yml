@@ -1,9 +1,0 @@
----
-- name: Transform Tackle 1.2 objects to 2.0 objects
-  hosts: localhost
-  gather_facts: false
-  tasks:
-
-  - name: Iterate services to transform their objects - Applications
-    loop: "{{ lookup('fileglob', 'data/dump/application-inventory/*', wantlist=True) }}"
-    include_tasks: 2_transform_application_list.yaml

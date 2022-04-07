@@ -1,8 +1,0 @@
----
-- name: Transforming application {{ app.id }} {{ app.name }}
-  # vars:
-  #   related_objects: "{{ lookup('file', tags_or_others) | from_json }}"
-  #   some_selected_field: "{{ related_objects[0].something }}"
-  template:
-    src: "templates/application-inventory/application.yml.j2"
-    dest: "data/transformed/application-inventory/application/{{ app.id }}"
