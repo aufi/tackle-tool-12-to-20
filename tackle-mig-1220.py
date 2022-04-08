@@ -28,14 +28,21 @@ def checkConfig(expected_vars):
             exit(1)
 
 def apiJSON(url, token, data=None): # TODO: currently is specific to Tackle1 API only
+    print("Querying: %s" % url)
     if data:
-        r = requests.post(url, json.dumps(data), data, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)
+        r = requests.post(url, data=json.dumps(data), headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)
     else:
         r = requests.get(url, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)  # add pagination?
     if not r.ok:
+        if data:
+            print("ERROR: POST data: %s" % data)
         print("ERROR: API request failed with status %d for %s" % (r.status_code, url))
         exit(1)
-    return json.loads(r.text)['_embedded'][url.rsplit('/')[-1]] # unwrap Tackle1 JSON response (e.g. _embedded -> application -> [{...}])
+    respData = json.loads(r.text)
+    if '_embedded' in respData:
+        return [url.rsplit('/')[-1]] # unwrap Tackle1 JSON response (e.g. _embedded -> application -> [{...}])
+    else:
+        return respData # raw return JSON (Tackle2)
 
 def loadDump(path):
     data = open(path)
@@ -58,16 +65,19 @@ class Tackle12Import:
     # TYPES order matters for import/upload to Tackle2
     TYPES = ['tags', 'tagtypes', 'identities', 'jobfunctions', 'stakeholdergroups', 'stakeholders', 'businessservices', 'applications', 'reviews']  # buckets, proxies
 
-    def __init__(self, dataDir, tackle1Url, tackle1Token):
+    def __init__(self, dataDir, tackle1Url, tackle1Token, tackle2Url, tackle2Token):
         self.dataDir      = dataDir
         self.tackle1Url   = tackle1Url
         self.tackle1Token = tackle1Token
+        self.tackle2Url   = tackle2Url
+        self.tackle2Token = tackle2Token
         self.data         = dict()
         for t in self.TYPES:
             self.data[t] = []
 
-    # Reach Tackle 1.2 API and gather all application-inventory related objects
-    def dumpTackle1ApplicationInventory(self):
+    # Reach Tackle 1.2 API objects
+    def dumpTackle1API(self):
+        ### APPLICATION ###
         collection = apiJSON(self.tackle1Url + "/api/application-inventory/application", self.tackle1Token)
         for app1 in collection:
             # Temp holder for tags
@@ -86,8 +96,6 @@ class Tackle12Import:
             app.tags        = tags
             self.add('applications', app)
 
-    # Reach Tackle 1.2 API and gather all control related objects
-    def dumpTackle1Controls(self):
         ### STAKEHOLDER ###
         collection = apiJSON(self.tackle1Url + "/api/controls/stakeholder", self.tackle1Token)
         for sh1 in collection:
@@ -186,12 +194,17 @@ class Tackle12Import:
         for t in self.TYPES:
             saveJSON(os.path.join(self.dataDir, t), self.data[t])
 
-    def load(self):
+    def uploadTackle2API(self):
         for t in self.TYPES:
-            dictCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
-            for dictObj in dictCollection:
-                obj = Tackle2Object(dictObj)
-                self.add(obj)
+            # Skip resources existing in clean Tackle2 installation (or change IDs?)
+            if t in ['tags', 'tagtypes', 'jobfunctions']:
+                next
+            else:
+                print("Uploading %s.." % t)
+                dictCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
+                for dictObj in dictCollection:
+                    print(dictObj)
+                    apiJSON(self.tackle2Url + "/hub/" + t, self.tackle2Token, dictObj)
 
 class Tackle2Object:
     def __init__(self, initAttrs = {}):
@@ -207,23 +220,26 @@ dataDir = "./mig-data"
 print("Starting Tackle 1.2 -> 2 data migration tool")
 
 # Tackle 2.0 objects to be imported
-tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), os.environ.get('TACKLE1_TOKEN'))
+tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), os.environ.get('TACKLE1_TOKEN'), os.environ.get('TACKLE2_URL'), os.environ.get('TACKLE2_TOKEN'))
 
 # Dump steps
 if cmdWanted(args, "dump"):
     print("Dumping Tackle1.2 objects..")
-    tackle12import.dumpTackle1ApplicationInventory()
-    tackle12import.dumpTackle1Controls()
+    tackle12import.dumpTackle1API()
     print("Writing JSON data files into %s.." % dataDir)
     tackle12import.store()
 
 
 # Upload steps
 if cmdWanted(args, "upload"):
-    print("Loading JSON data files from %s.." % dataDir)
-    tackle12import.load()
     print("Uploading data to Tackle2..")
-    # tackle12import.uploadTackle2()
+    tackle12import.uploadTackle2API()
+
+# Clean uploaded objects
+#if cmdWanted(args, "clean"):
+#    print("Cleaning data uploaded to Tackle2..")
+#    tackle12import.cleanTackle2API()
+
 
 print("Done.")
 
