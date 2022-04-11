@@ -8,7 +8,7 @@ import requests
 
 parser = argparse.ArgumentParser(description='Migrate data from Tackle 1.2 to Tackle 2.')
 parser.add_argument('steps', type=str, nargs='*',
-                    help='One or more steps of migration that should be executed (dump and upload by default), options: dump  upload')
+                    help='One or more steps of migration that should be executed (dump and upload by default), options: dump  upload  clean')
 args = parser.parse_args()
 
 ###############################################################################
@@ -27,17 +27,28 @@ def checkConfig(expected_vars):
             print("ERROR: Missing required environment variable %s, define it first." % varKey)
             exit(1)
 
-def apiJSON(url, token, data=None): # TODO: currently is specific to Tackle1 API only
-    print("Querying: %s" % url)
-    if data:
-        r = requests.post(url, data=json.dumps(data), headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)
-    else:
-        r = requests.get(url, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)  # add pagination?
+def apiJSON(url, token, data=None, method='GET', ignoreErrors=False):
+    # print("Querying: %s" % url)
+    match method:
+        case 'DELETE':
+            r = requests.delete(url, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)
+        case 'POST':
+            r = requests.post(url, data=json.dumps(data), headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)
+        case _: # GET
+            r = requests.get(url, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)  # add pagination?
+
     if not r.ok:
-        if data:
-            print("ERROR: POST data: %s" % data)
-        print("ERROR: API request failed with status %d for %s" % (r.status_code, url))
-        exit(1)
+        if ignoreErrors:
+            print("Got status %d for %s, ignoring" % (r.status_code, url))
+        else:
+            if data:
+                print("ERROR: POST data: %s" % data)
+            print("ERROR: API request failed with status %d for %s" % (r.status_code, url))
+            exit(1)
+
+    if r.text ==  '':
+        return
+
     respData = json.loads(r.text)
     if '_embedded' in respData:
         return [url.rsplit('/')[-1]] # unwrap Tackle1 JSON response (e.g. _embedded -> application -> [{...}])
@@ -54,7 +65,7 @@ def saveJSON(path, jsonData):
     dumpFile.close()
 
 def cmdWanted(args, step):
-    if not args.steps or step in args.steps:
+    if step in args.steps:
         return True
     else:
         return False
@@ -76,7 +87,7 @@ class Tackle12Import:
             self.data[t] = []
 
     # Reach Tackle 1.2 API objects
-    def dumpTackle1API(self):
+    def dumpTackle1(self):
         ### APPLICATION ###
         collection = apiJSON(self.tackle1Url + "/api/application-inventory/application", self.tackle1Token)
         for app1 in collection:
@@ -194,7 +205,7 @@ class Tackle12Import:
         for t in self.TYPES:
             saveJSON(os.path.join(self.dataDir, t), self.data[t])
 
-    def uploadTackle2API(self):
+    def uploadTackle2(self):
         for t in self.TYPES:
             # Skip resources existing in clean Tackle2 installation (or change IDs?)
             if t in ['tags', 'tagtypes', 'jobfunctions']:
@@ -204,7 +215,19 @@ class Tackle12Import:
                 dictCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
                 for dictObj in dictCollection:
                     print(dictObj)
-                    apiJSON(self.tackle2Url + "/hub/" + t, self.tackle2Token, dictObj)
+                    apiJSON(self.tackle2Url + "/hub/" + t, self.tackle2Token, dictObj, method='POST')
+
+    def cleanTackle2(self):
+        self.TYPES.reverse()
+        for t in self.TYPES:
+            # Skip resources existing in clean Tackle2 installation (or change IDs?)
+            if t in ['tags', 'tagtypes', 'jobfunctions']:
+                next
+            else:
+                dictCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
+                for dictObj in dictCollection:
+                    print("Deleting %s/%s" % (t, dictObj['id']))
+                    apiJSON("%s/hub/%s/%d" % (self.tackle2Url, t, dictObj['id']), self.tackle2Token, method='DELETE')
 
 class Tackle2Object:
     def __init__(self, initAttrs = {}):
@@ -217,7 +240,7 @@ class Tackle2Object:
 
 dataDir = "./mig-data"
 
-print("Starting Tackle 1.2 -> 2 data migration tool")
+print("Tackle 1.2 -> 2 data migration tool")
 
 # Tackle 2.0 objects to be imported
 tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), os.environ.get('TACKLE1_TOKEN'), os.environ.get('TACKLE2_URL'), os.environ.get('TACKLE2_TOKEN'))
@@ -225,23 +248,19 @@ tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), os.envir
 # Dump steps
 if cmdWanted(args, "dump"):
     print("Dumping Tackle1.2 objects..")
-    tackle12import.dumpTackle1API()
+    tackle12import.dumpTackle1()
     print("Writing JSON data files into %s.." % dataDir)
     tackle12import.store()
-
 
 # Upload steps
 if cmdWanted(args, "upload"):
     print("Uploading data to Tackle2..")
-    tackle12import.uploadTackle2API()
+    tackle12import.uploadTackle2()
 
 # Clean uploaded objects
-#if cmdWanted(args, "clean"):
-#    print("Cleaning data uploaded to Tackle2..")
-#    tackle12import.cleanTackle2API()
-
-
-print("Done.")
+if cmdWanted(args, "clean"):
+    print("Cleaning data uploaded to Tackle2..")
+    tackle12import.cleanTackle2()
 
 ###############################################################################
 
