@@ -75,6 +75,7 @@ def cmdWanted(args, step):
 class Tackle12Import:
     # TYPES order matters for import/upload to Tackle2
     TYPES = ['tags', 'tagtypes', 'identities', 'jobfunctions', 'stakeholdergroups', 'stakeholders', 'businessservices', 'applications', 'reviews']  # buckets, proxies
+    TACKLE2_SEED_TYPES = ['tags', 'tagtypes', 'jobfunctions']   # not used?
 
     def __init__(self, dataDir, tackle1Url, tackle1Token, tackle2Url, tackle2Token):
         self.dataDir      = dataDir
@@ -86,8 +87,39 @@ class Tackle12Import:
         for t in self.TYPES:
             self.data[t] = []
 
-    # Reach Tackle 1.2 API objects
+    # Gather Tackle 1.2 API objects and map seeded Tackle2 API objects
     def dumpTackle1(self):
+        # Gather existing seeded objects from Tackle2
+        print("Checking Tackle 2 for seed objects..")
+        ### TACKLE 2 SEED OBJECTS ###
+        tackle2tagtypes = dict()
+        tackle2tags = dict()
+        tackle2jobfunctions = dict()
+
+        # Tackle 2 TagTypes and Tags
+        collection = apiJSON(tackle12import.tackle2Url + "/hub/tagtypes", tackle12import.tackle2Token)
+        for tt2 in collection:
+            tt  = Tackle2Object(tt2)
+            tt.name = tt2['name']
+            tackle2tagtypes[tt.name] = tt
+            for t2 in tt2['tags']:
+                tag             = Tackle2Object()
+                tag.id          = t2['id']
+                tag.name        = t2['name']
+                tackle2tags[tag.name] = tag
+
+        # Tackle 2 JobFunctions
+        collection = apiJSON(tackle12import.tackle2Url + "/hub/jobfunctions", tackle12import.tackle2Token)
+        for jf2 in collection:
+            jf              = Tackle2Object(jf2)
+            jf.name         = jf2['name']
+            tackle2jobfunctions[jf.name] = jf
+
+        #print(tackle2jobfunctions, tackle2tags, tackle2tagtypes)
+        #return
+
+        # Iterate Tackle 1.2 objects
+        print("Dumping Tackle 1.2 API objects")
         ### APPLICATION ###
         collection = apiJSON(self.tackle1Url + "/api/application-inventory/application", self.tackle1Token)
         for app1 in collection:
@@ -152,10 +184,7 @@ class Tackle12Import:
                 self.add('stakeholders', sh)
                 shs.append(sh)
             # Prepare JobFunction
-            jf              = Tackle2Object()
-            jf.id           = jf1['id']
-            jf.createUser   = jf1['createUser']
-            jf.updateUser   = jf1['updateUser']
+            jf              = Tackle2Object(jf1)
             jf.name         = jf1['role']
             jf.stakeholders = shs
             self.add('jobfunctions', jf)
@@ -245,9 +274,27 @@ print("Tackle 1.2 -> 2 data migration tool")
 # Tackle 2.0 objects to be imported
 tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), os.environ.get('TACKLE1_TOKEN'), os.environ.get('TACKLE2_URL'), os.environ.get('TACKLE2_TOKEN'))
 
+##for tags in collection:
+##    # Temp holder for tags
+##    tags = []
+##    # Prepare Tags
+##    for tag1 in app1['tags']:
+##        tag             = Tackle2Object(tag1)
+##        tag.name        = tag1['name']
+##        self.add('tags', tag)
+##        tags.append(tag)
+##    # Prepare Application
+##    app             = Tackle2Object(app1)
+##    app.name        = app1['name']
+##    app.description = app1['description']
+##    # app.businessService = {}
+##    app.tags        = tags
+##    self.add('applications', app)
+
+
 # Dump steps
 if cmdWanted(args, "dump"):
-    print("Dumping Tackle1.2 objects..")
+    print("Dump Tackle objects..")
     tackle12import.dumpTackle1()
     print("Writing JSON data files into %s.." % dataDir)
     tackle12import.store()
