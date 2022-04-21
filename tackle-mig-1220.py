@@ -27,6 +27,19 @@ def checkConfig(expected_vars):
             print("ERROR: Missing required environment variable %s, define it first." % varKey)
             exit(1)
 
+def getKeycloakToken(host, username, password, client_id='tackle-ui', realm='tackle'):
+    url  = "%s/auth/realms/%s/protocol/openid-connect/token" % (host, realm)
+    data = {'username': username, 'password': password, 'client_id': client_id, 'grant_type': 'password'}
+
+    r = requests.post(url, data=data, verify=False)
+    if r.ok:
+        respData = json.loads(r.text)
+        return respData['access_token']
+    else:
+        print("ERROR getting auth token from %s" % url)
+        print(data, r)
+        exit(1)
+
 def apiJSON(url, token, data=None, method='GET', ignoreErrors=False):
     # print("Querying: %s" % url)
     match method:
@@ -242,8 +255,12 @@ dataDir = "./mig-data"
 
 print("Tackle 1.2 -> 2 data migration tool")
 
+# Gather Keycloak access tokens for Tackle1&2
+token1 = getKeycloakToken(os.environ.get('TACKLE1_URL'), os.environ.get('TACKLE1_USERNAME'), os.environ.get('TACKLE1_PASSWORD'))
+token2 = getKeycloakToken(os.environ.get('TACKLE2_URL'), os.environ.get('TACKLE2_USERNAME'), os.environ.get('TACKLE2_PASSWORD'))
+
 # Tackle 2.0 objects to be imported
-tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), os.environ.get('TACKLE1_TOKEN'), os.environ.get('TACKLE2_URL'), os.environ.get('TACKLE2_TOKEN'))
+tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE2_URL'), token1, os.environ.get('TACKLE2_URL'), token2)
 
 # Dump steps
 if cmdWanted(args, "dump"):
