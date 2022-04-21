@@ -22,13 +22,15 @@ options:
   -h, --help  show this help message and exit
 ```
 
-API endpoints and tokens should be set in the environment or source an env file.
+API endpoints and credentials should be set in the environment or source an env file.
 
 ```
 export TACKLE1_URL=https://tackle-tackle.apps.mta01.cluster.local
-export TACKLE1_TOKEN=eyJhbGciOiJSUzI1Ni...
+export TACKLE1_USERNAME=tackle
+export TACKLE1_PASSWORD=...
 export TACKLE2_URL=https://tackle-konveyor-tackle.apps.cluster.local
-export TACKLE2_TOKEN=axJsbDcxLisdWDWfca...
+export TACKLE2_USERNAME=admin
+export TACKLE2_PASSWORD=...
 ```
 
 ### Sample command output
@@ -37,18 +39,6 @@ export TACKLE2_TOKEN=axJsbDcxLisdWDWfca...
 $ . config-vars && python tackle-mig-1220.py dump
 Starting Tackle 1.2 -> 2 data migration tool
 Dumping Tackle1.2 objects..
-/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
-  wa
-/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
-  wa
-/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
-  wa
-/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
-  wa
-/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
-  wa
-/usr/lib/python3.10/site-packages/urllib3/connectionpool.py:1013: InsecureRequestWarning: Unverified HTTPS request is being made to host 'tackle-mta.apps.mta02.cnv-qe'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/1.26.x/advanced-usage.html#ssl-warnings
-  wa
 Writing JSON data files into ./mig-data..
 Done.
 ```

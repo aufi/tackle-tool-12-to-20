@@ -1,4 +1,6 @@
 export TACKLE1_URL=https://tackle-tackle.apps.mta01.cluster.local
-export TACKLE1_TOKEN=eyJhbGciOiJSUzI1Ni...
+export TACKLE1_USERNAME=tackle
+export TACKLE1_PASSWORD=
 export TACKLE2_URL=https://tackle-konveyor-tackle.apps.cluster.local
-export TACKLE2_TOKEN=axJsbDcxLisdWDWfca...
+export TACKLE2_USERNAME=admin
+export TACKLE2_PASSWORD=
