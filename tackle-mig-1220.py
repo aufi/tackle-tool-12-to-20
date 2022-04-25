@@ -41,7 +41,7 @@ def getKeycloakToken(host, username, password, client_id='tackle-ui', realm='tac
         exit(1)
 
 def apiJSON(url, token, data=None, method='GET', ignoreErrors=False):
-    # print("Querying: %s" % url)
+    print("Querying: %s" % url)
     match method:
         case 'DELETE':
             r = requests.delete(url, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)
@@ -59,12 +59,15 @@ def apiJSON(url, token, data=None, method='GET', ignoreErrors=False):
             print("ERROR: API request failed with status %d for %s" % (r.status_code, url))
             exit(1)
 
-    if r.text ==  '':
+    if r.text is None or r.text ==  '':
         return
+
+    print("Response: %s" % r.text)
 
     respData = json.loads(r.text)
     if '_embedded' in respData:
-        return [url.rsplit('/')[-1]] # unwrap Tackle1 JSON response (e.g. _embedded -> application -> [{...}])
+        print("Unwrapping Tackle1 JSON")
+        return respData['_embedded'][url.rsplit('/')[-1]] # unwrap Tackle1 JSON response (e.g. _embedded -> application -> [{...}])
     else:
         return respData # raw return JSON (Tackle2)
 
@@ -115,11 +118,12 @@ class Tackle12Import:
             tt  = Tackle2Object(tt2)
             tt.name = tt2['name']
             tackle2tagtypes[tt.name] = tt
-            for t2 in tt2['tags']:
-                tag             = Tackle2Object()
-                tag.id          = t2['id']
-                tag.name        = t2['name']
-                tackle2tags[tag.name] = tag
+            if tt2['tags']:
+                for t2 in tt2['tags']:
+                    tag             = Tackle2Object()
+                    tag.id          = t2['id']
+                    tag.name        = t2['name']
+                    tackle2tags[tag.name] = tag
 
         # Tackle 2 JobFunctions
         collection = apiJSON(tackle12import.tackle2Url + "/hub/jobfunctions", tackle12import.tackle2Token)
@@ -135,15 +139,18 @@ class Tackle12Import:
         print("Dumping Tackle 1.2 API objects")
         ### APPLICATION ###
         collection = apiJSON(self.tackle1Url + "/api/application-inventory/application", self.tackle1Token)
+        print(collection)
         for app1 in collection:
             # Temp holder for tags
             tags = []
             # Prepare Tags
-            for tag1 in app1['tags']:
-                tag             = Tackle2Object(tag1)
-                tag.name        = tag1['name']
-                self.add('tags', tag)
-                tags.append(tag)
+            print(app1)
+            if app1['tags']:
+              for tag1 in app1['tags']:
+                  tag             = Tackle2Object(tag1)
+                  tag.name        = tag1['name']
+                  self.add('tags', tag)
+                  tags.append(tag)
             # Prepare Application
             app             = Tackle2Object(app1)
             app.name        = app1['name']
@@ -289,7 +296,7 @@ token1 = getKeycloakToken(os.environ.get('TACKLE1_URL'), os.environ.get('TACKLE1
 token2 = getKeycloakToken(os.environ.get('TACKLE2_URL'), os.environ.get('TACKLE2_USERNAME'), os.environ.get('TACKLE2_PASSWORD'))
 
 # Tackle 2.0 objects to be imported
-tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE2_URL'), token1, os.environ.get('TACKLE2_URL'), token2)
+tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), token1, os.environ.get('TACKLE2_URL'), token2)
 
 ##for tags in collection:
 ##    # Temp holder for tags
