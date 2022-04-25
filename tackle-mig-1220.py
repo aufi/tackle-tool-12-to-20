@@ -132,9 +132,6 @@ class Tackle12Import:
             jf.name         = jf2['name']
             tackle2jobfunctions[jf.name] = jf
 
-        #print(tackle2jobfunctions, tackle2tags, tackle2tagtypes)
-        #return
-
         # Iterate Tackle 1.2 objects
         print("Dumping Tackle 1.2 API objects")
         ### APPLICATION ###
@@ -273,27 +270,30 @@ class Tackle12Import:
 
     def uploadTackle2(self):
         for t in self.TYPES:
-            # Skip resources existing in clean Tackle2 installation (or change IDs?)
-            if t in ['tags', 'tagtypes', 'jobfunctions']:
-                next
-            else:
-                print("Uploading %s.." % t)
-                dictCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
-                for dictObj in dictCollection:
-                    print(dictObj)
-                    apiJSON(self.tackle2Url + "/hub/" + t, self.tackle2Token, dictObj, method='POST')
+            print("Uploading %s.." % t)
+            dictCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
+            for dictObj in dictCollection:
+                print(dictObj)
+                apiJSON(self.tackle2Url + "/hub/" + t, self.tackle2Token, dictObj, method='POST')
+
+    def preImportCheck(self):
+        for t in self.TYPES:
+            print("Checking %s in destination Tackle2.." % t)
+            destCollection = apiJSON(self.tackle2Url + "/hub/" + t, self.tackle2Token)
+            localCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
+            for importObj in localCollection:
+                for destObj in destCollection:
+                    if importObj['id'] == destObj['id']:
+                        print("ERROR: Resource %s/%d \"%s\" already exists in Tackle2 destination as \"%s\". Clean it before running import." % (t, importObj['id'], importObj['name'], destObj['name']))
+                        exit(1)
 
     def cleanTackle2(self):
         self.TYPES.reverse()
         for t in self.TYPES:
-            # Skip resources existing in clean Tackle2 installation (or change IDs?)
-            if t in ['tags', 'tagtypes', 'jobfunctions']:
-                next
-            else:
-                dictCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
-                for dictObj in dictCollection:
-                    print("Deleting %s/%s" % (t, dictObj['id']))
-                    apiJSON("%s/hub/%s/%d" % (self.tackle2Url, t, dictObj['id']), self.tackle2Token, method='DELETE')
+            dictCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
+            for dictObj in dictCollection:
+                print("Deleting %s/%s" % (t, dictObj['id']))
+                apiJSON("%s/hub/%s/%d" % (self.tackle2Url, t, dictObj['id']), self.tackle2Token, method='DELETE')
 
 class Tackle2Object:
     def __init__(self, initAttrs = {}):
@@ -343,6 +343,7 @@ if cmdWanted(args, "dump"):
 # Upload steps
 if cmdWanted(args, "upload"):
     print("Uploading data to Tackle2..")
+    tackle12import.preImportCheck()
     tackle12import.uploadTackle2()
 
 # Clean uploaded objects
