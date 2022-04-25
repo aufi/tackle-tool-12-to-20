@@ -139,18 +139,23 @@ class Tackle12Import:
         print("Dumping Tackle 1.2 API objects")
         ### APPLICATION ###
         collection = apiJSON(self.tackle1Url + "/api/application-inventory/application", self.tackle1Token)
-        print(collection)
         for app1 in collection:
             # Temp holder for tags
             tags = []
             # Prepare Tags
             print(app1)
             if app1['tags']:
-              for tag1 in app1['tags']:
-                  tag             = Tackle2Object(tag1)
-                  tag.name        = tag1['name']
-                  self.add('tags', tag)
-                  tags.append(tag)
+                for tag1 in app1['tags']:
+                    # Check if Tag exists in Tackle2 destination
+                    if tag1['name'] in tackle2tags:
+                        # Re-map to existing Tackle2 Tag
+                        tags.append(tackle2tags[tag1['name']])  # deepcopy?
+                    else:
+                        # Prepare new Tag
+                        tag             = Tackle2Object(tag1)
+                        tag.name        = tag1['name']
+                        self.add('tags', tag)
+                        tags.append(tag)
             # Prepare Application
             app             = Tackle2Object(app1)
             app.name        = app1['name']
@@ -169,16 +174,24 @@ class Tackle12Import:
                 shg             = Tackle2Object(shg)
                 shg.name        = shg1['name']
                 shg.description = shg1['description']
-                # +Stakeholders arr/refs?
                 self.add('stakeholdergroups', shg)
                 shgs.append(shg)
             # Prepare StakeHolder
             sh            = Tackle2Object(sh1)
             sh.name       = sh1['displayName']
             sh.email      = sh1['email']
-            # sh.businessServices = []
+            # sh.businessServices = [] ??
             sh.groups     = shgs
-            # sh.jobFunction = {}
+            if sh1['jobFunction']:
+                if sh1['jobFunction']['name'] in tackle2jobfunctions:
+                    # Re-map to JobFunction existing in Tackle2 destination
+                    sh.jobFunction = tackle2jobfunctions[sh['jobFunction']['name']]
+                else:
+                    # Prepare new JobFunction
+                    jf              = Tackle2Object(sh['jobFunction'])
+                    jf.name         = sh['jobFunction']['role']
+                    self.add('jobfunctions', jf)
+                    sh.jobFunction = jf
             self.add('stakeholders', sh)
         
         ### STAKEHOLDER GROUPS ###
@@ -188,7 +201,6 @@ class Tackle12Import:
             shg             = Tackle2Object(shg1)
             shg.name        = shg1['name']
             shg.description = shg1['description']
-            # +Stakeholders arr/refs?
             self.add('stakeholdergroups', shg)
 
         ### JOB FUNCTION ###
@@ -201,13 +213,14 @@ class Tackle12Import:
                 sh             = Tackle2Object(sh1)
                 sh.name        = sh1['displayName']
                 sh.email       = sh1['email']
-                self.add('stakeholders', sh)
                 shs.append(sh)
             # Prepare JobFunction
             jf              = Tackle2Object(jf1)
             jf.name         = jf1['role']
             jf.stakeholders = shs
-            self.add('jobfunctions', jf)
+            # Store only if doesn't exist in Tackle2 destination already
+            if jf.name not in tackle2jobfunctions:
+                self.add('jobfunctions', jf)
 
         ### BUSINESS SERVICE ###
         collection = apiJSON(self.tackle1Url + "/api/controls/business-service", self.tackle1Token)
@@ -216,7 +229,7 @@ class Tackle12Import:
             bs              = Tackle2Object(bs1)
             bs.name         = bs1['name']
             bs.description  = bs1['description']
-            # bs.owner        = bs1['owner'] + foreign key object
+            bs.owner        = bs1['owner']  # Stakeholder
             self.add('businessservices', bs)
 
         ### TAG TYPES & TAGS ###
@@ -229,7 +242,9 @@ class Tackle12Import:
                 tag             = Tackle2Object(tag1)
                 tag.name        = tag1['name']
                 # TagType is injected from tagType processing few lines below
-                self.add('tags', tag)
+                # Store Tag only if doesn't exist in Tackle2 destination already
+                if tag.name not in tackle2tags:
+                    self.add('tags', tag)
                 tags.append(tag)
             # Prepare TagType
             tt            = Tackle2Object(tt1)
@@ -238,9 +253,11 @@ class Tackle12Import:
             tt.rank       = tt1['rank']
             tt.username   = tt1['createUser'] # Is there another relevant user?
             for tag in tags:
-                tag.tagType = copy.deepcopy(tt)
+                tag.tagType = copy.deepcopy(tt) # Is this doule-nesting needed?
             tt.tags = tags
-            self.add('tagtypes', tt)
+            # Store only if doesn't exist in Tackle2 destination already
+            if tt.name not in tackle2tagtypes:
+                self.add('tagtypes', tt)
 
     def add(self, type, item):
         for existingItem in self.data[type]:
