@@ -9,16 +9,17 @@ import requests
 parser = argparse.ArgumentParser(description='Migrate data from Tackle 1.2 to Tackle 2.')
 parser.add_argument('steps', type=str, nargs='*',
                     help='One or more steps of migration that should be executed (dump and upload by default), options: dump  upload  clean')
+parser.add_argument('-d','--debug', dest='debug', action='store_const', const=True, default=False,
+                    help='Print debug output including all API requests')
 args = parser.parse_args()
 
 ###############################################################################
 
 def ensureDataDir(dataDir):
     if os.path.isdir(dataDir):
-        pass
-        # print("Data directory already exists, using %s" % dataDir)
+        debugPrint("Data directory already exists, using %s" % dataDir)
     else:
-      # print("Creating data directories at %s" % dataDir)
+      debugPrint("Creating data directories at %s" % dataDir)
       os.mkdir(dataDir)
 
 def checkConfig(expected_vars):
@@ -26,6 +27,10 @@ def checkConfig(expected_vars):
         if os.environ.get(varKey) is None:
             print("ERROR: Missing required environment variable %s, define it first." % varKey)
             exit(1)
+
+def debugPrint(str):
+    if args.debug:
+        print(str)
 
 def getKeycloakToken(host, username, password, client_id='tackle-ui', realm='tackle'):
     url  = "%s/auth/realms/%s/protocol/openid-connect/token" % (host, realm)
@@ -41,7 +46,7 @@ def getKeycloakToken(host, username, password, client_id='tackle-ui', realm='tac
         exit(1)
 
 def apiJSON(url, token, data=None, method='GET', ignoreErrors=False):
-    print("Querying: %s" % url)
+    debugPrint("Querying: %s" % url)
     match method:
         case 'DELETE':
             r = requests.delete(url, headers={"Authorization": "Bearer %s" % token, "Content-Type": "text/json"}, verify=False)
@@ -52,7 +57,7 @@ def apiJSON(url, token, data=None, method='GET', ignoreErrors=False):
 
     if not r.ok:
         if ignoreErrors:
-            print("Got status %d for %s, ignoring" % (r.status_code, url))
+            debugPrint("Got status %d for %s, ignoring" % (r.status_code, url))
         else:
             if data:
                 print("ERROR: POST data: %s" % data)
@@ -62,11 +67,11 @@ def apiJSON(url, token, data=None, method='GET', ignoreErrors=False):
     if r.text is None or r.text ==  '':
         return
 
-    print("Response: %s" % r.text)
+    debugPrint("Response: %s" % r.text)
 
     respData = json.loads(r.text)
     if '_embedded' in respData:
-        print("Unwrapping Tackle1 JSON")
+        debugPrint("Unwrapping Tackle1 JSON")
         return respData['_embedded'][url.rsplit('/')[-1]] # unwrap Tackle1 JSON response (e.g. _embedded -> application -> [{...}])
     else:
         return respData # raw return JSON (Tackle2)
@@ -140,7 +145,7 @@ class Tackle12Import:
             # Temp holder for tags
             tags = []
             # Prepare Tags
-            print(app1)
+            debugPrint(app1)
             if app1['tags']:
                 for tag1 in app1['tags']:
                     # Check if Tag exists in Tackle2 destination
@@ -273,7 +278,7 @@ class Tackle12Import:
             print("Uploading %s.." % t)
             dictCollection = loadDump(os.path.join(self.dataDir, t + '.json'))
             for dictObj in dictCollection:
-                print(dictObj)
+                debugPrint(dictObj)
                 apiJSON(self.tackle2Url + "/hub/" + t, self.tackle2Token, dictObj, method='POST')
 
     def preImportCheck(self):

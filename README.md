@@ -1,6 +1,6 @@
 # tackle-tool-12-to-20
 
-A tool migrating Konveyor Tackle 1.2 data into Tackle 2.0 written as a Python script. For more details about Tackle, see https://github.com/konveyor/tackle-documentation
+A tool migrating Konveyor Tackle 1.2 data into Tackle 2.0 written as a Python script. For more details about Tackle, see [Tackle2-Hub README](../../) or https://github.com/konveyor/tackle-documentation.
 
 ## Usage
 
