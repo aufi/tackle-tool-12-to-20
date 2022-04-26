@@ -95,8 +95,8 @@ def cmdWanted(args, step):
 
 class Tackle12Import:
     # TYPES order matters for import/upload to Tackle2
-    TYPES = ['tags', 'tagtypes', 'identities', 'jobfunctions', 'stakeholdergroups', 'stakeholders', 'businessservices', 'applications', 'reviews']  # buckets, proxies
-    TACKLE2_SEED_TYPES = ['tags', 'tagtypes', 'jobfunctions']   # not used?
+    TYPES = ['applications', 'proxies', 'dependencies', 'reviews', 'identities', 'jobfunctions', 'stakeholdergroups', 'stakeholders', 'businessservices', 'tags', 'tagtypes']  # buckets
+    TACKLE2_SEED_TYPES = ['tags', 'tagtypes', 'jobfunctions']
 
     def __init__(self, dataDir, tackle1Url, tackle1Token, tackle2Url, tackle2Token):
         self.dataDir      = dataDir
@@ -104,41 +104,44 @@ class Tackle12Import:
         self.tackle1Token = tackle1Token
         self.tackle2Url   = tackle2Url
         self.tackle2Token = tackle2Token
+        # Dump data
         self.data         = dict()
         for t in self.TYPES:
             self.data[t] = []
+        # Existing resources in destination
+        self.destData        = dict()
+        for t in self.TYPES:
+            self.destData[t] = dict()
 
-    # Gather Tackle 1.2 API objects and map seeded Tackle2 API objects
-    def dumpTackle1(self):
-        # Gather existing seeded objects from Tackle2
+    # Gather existing seeded objects from Tackle2
+    def loadTackle2Seeds(self):
         print("Checking Tackle 2 for seed objects..")
-        ### TACKLE 2 SEED OBJECTS ###
-        tackle2tagtypes = dict()
-        tackle2tags = dict()
-        tackle2jobfunctions = dict()
 
         # Tackle 2 TagTypes and Tags
         collection = apiJSON(tackle12import.tackle2Url + "/hub/tagtypes", tackle12import.tackle2Token)
         for tt2 in collection:
             tt  = Tackle2Object(tt2)
             tt.name = tt2['name']
-            tackle2tagtypes[tt.name] = tt
+            self.destData['tagtypes'][tt.name] = tt
             if tt2['tags']:
                 for t2 in tt2['tags']:
                     tag             = Tackle2Object()
                     tag.id          = t2['id']
                     tag.name        = t2['name']
-                    tackle2tags[tag.name] = tag
+                    self.destData['tags'][tag.name] = tag
 
         # Tackle 2 JobFunctions
         collection = apiJSON(tackle12import.tackle2Url + "/hub/jobfunctions", tackle12import.tackle2Token)
         for jf2 in collection:
             jf              = Tackle2Object(jf2)
             jf.name         = jf2['name']
-            tackle2jobfunctions[jf.name] = jf
+            self.destData['jobfunctions'][jf.name] = jf
 
+    # Gather Tackle 1.2 API objects and map seeded Tackle2 API objects
+    def dumpTackle1(self):
         # Iterate Tackle 1.2 objects
         print("Dumping Tackle 1.2 API objects")
+
         ### APPLICATION ###
         collection = apiJSON(self.tackle1Url + "/api/application-inventory/application", self.tackle1Token)
         for app1 in collection:
@@ -149,9 +152,9 @@ class Tackle12Import:
             if app1['tags']:
                 for tag1 in app1['tags']:
                     # Check if Tag exists in Tackle2 destination
-                    if tag1['name'] in tackle2tags:
+                    if tag1['name'] in self.destData['tags']:
                         # Re-map to existing Tackle2 Tag
-                        tags.append(tackle2tags[tag1['name']])  # deepcopy?
+                        tags.append(self.destData['tags'][tag1['name']])  # deepcopy?
                     else:
                         # Prepare new Tag
                         tag             = Tackle2Object(tag1)
@@ -159,12 +162,48 @@ class Tackle12Import:
                         self.add('tags', tag)
                         tags.append(tag)
             # Prepare Application
-            app             = Tackle2Object(app1)
-            app.name        = app1['name']
-            app.description = app1['description']
-            # app.businessService = {}
-            app.tags        = tags
+            app                 = Tackle2Object(app1)
+            app.name            = app1['name']
+            app.description     = app1['description']
+            app.businessService = app1['businessService']
+            app.repository      = app1['repository']
+            app.binary          = app1['binary']
+            app.facts           = app1['facts']
+            app.review          = app1['review']
+            app.tags            = tags
             self.add('applications', app)
+
+        ### PROXIES ###
+        collection = apiJSON(self.tackle1Url + "/api/", self.tackle1Token)
+        for proxy1 in collection:
+            # Prepare Proxy
+            proxy                 = Tackle2Object(proxy1)
+            proxy.name            = proxy1['name']
+            self.add('proxies', proxy)
+
+        ### DEPENDENCIES ###
+        collection = apiJSON(self.tackle1Url + "/api/", self.tackle1Token)
+        for dep1 in collection:
+            # Prepare Dependency
+            dep                 = Tackle2Object(dep1)
+            dep.name            = rev1['name']
+            self.add('dependencies', dep)
+
+        ### REVIEWS ###
+        collection = apiJSON(self.tackle1Url + "/api/application-inventory/application", self.tackle1Token)
+        for rev1 in collection:
+            # Prepare Review
+            rev                 = Tackle2Object(rev1)
+            app.name            = rev1['name']
+            self.add('reviews', rev)
+
+        ### IDENTITIES ###
+        collection = apiJSON(self.tackle1Url + "/api/", self.tackle1Token)
+        for id1 in collection:
+            # Prepare Review
+            id                 = Tackle2Object(id1)
+            id.name            = id1['name']
+            self.add('identities', id)
 
         ### STAKEHOLDER ###
         collection = apiJSON(self.tackle1Url + "/api/controls/stakeholder", self.tackle1Token)
@@ -182,12 +221,11 @@ class Tackle12Import:
             sh            = Tackle2Object(sh1)
             sh.name       = sh1['displayName']
             sh.email      = sh1['email']
-            # sh.businessServices = [] ??
             sh.groups     = shgs
             if sh1['jobFunction']:
-                if sh1['jobFunction']['name'] in tackle2jobfunctions:
+                if sh1['jobFunction']['name'] in self.destData['jobfunctions']:
                     # Re-map to JobFunction existing in Tackle2 destination
-                    sh.jobFunction = tackle2jobfunctions[sh['jobFunction']['name']]
+                    sh.jobFunction = self.destData['jobfunctions'][sh['jobFunction']['name']]
                 else:
                     # Prepare new JobFunction
                     jf              = Tackle2Object(sh['jobFunction'])
@@ -221,7 +259,7 @@ class Tackle12Import:
             jf.name         = jf1['role']
             jf.stakeholders = shs
             # Store only if doesn't exist in Tackle2 destination already
-            if jf.name not in tackle2jobfunctions:
+            if jf.name not in self.destData['jobfunctions']:
                 self.add('jobfunctions', jf)
 
         ### BUSINESS SERVICE ###
@@ -245,7 +283,7 @@ class Tackle12Import:
                 tag.name        = tag1['name']
                 # TagType is injected from tagType processing few lines below
                 # Store Tag only if doesn't exist in Tackle2 destination already
-                if tag.name not in tackle2tags:
+                if tag.name not in self.destData['tags']:
                     self.add('tags', tag)
                 tags.append(tag)
             # Prepare TagType
@@ -258,7 +296,7 @@ class Tackle12Import:
                 tag.tagType = copy.deepcopy(tt) # Is this doule-nesting needed?
             tt.tags = tags
             # Store only if doesn't exist in Tackle2 destination already
-            if tt.name not in tackle2tagtypes:
+            if tt.name not in self.destData['tagtypes']:
                 self.add('tagtypes', tt)
 
     def add(self, type, item):
@@ -320,27 +358,10 @@ token2 = getKeycloakToken(os.environ.get('TACKLE2_URL'), os.environ.get('TACKLE2
 # Tackle 2.0 objects to be imported
 tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), token1, os.environ.get('TACKLE2_URL'), token2)
 
-##for tags in collection:
-##    # Temp holder for tags
-##    tags = []
-##    # Prepare Tags
-##    for tag1 in app1['tags']:
-##        tag             = Tackle2Object(tag1)
-##        tag.name        = tag1['name']
-##        self.add('tags', tag)
-##        tags.append(tag)
-##    # Prepare Application
-##    app             = Tackle2Object(app1)
-##    app.name        = app1['name']
-##    app.description = app1['description']
-##    # app.businessService = {}
-##    app.tags        = tags
-##    self.add('applications', app)
-
-
 # Dump steps
 if cmdWanted(args, "dump"):
     print("Dump Tackle objects..")
+    tackle12import.loadTackle2Seeds()
     tackle12import.dumpTackle1()
     print("Writing JSON data files into %s.." % dataDir)
     tackle12import.store()
@@ -357,4 +378,3 @@ if cmdWanted(args, "clean"):
     tackle12import.cleanTackle2()
 
 ###############################################################################
-
