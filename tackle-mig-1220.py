@@ -146,9 +146,6 @@ class Tackle12Import:
 
     # Gather Tackle 1.2 API objects and map seeded Tackle2 API objects
     def dumpTackle1(self):
-        # Iterate Tackle 1.2 objects
-        print("Dumping Tackle 1.2 API objects")
-
         ### TAG TYPES & TAGS ###
         collection = apiJSON(self.tackle1Url + "/api/controls/tag-type", self.tackle1Token)
         for tt1 in collection:
@@ -397,21 +394,21 @@ tackle12import = Tackle12Import(dataDir, os.environ.get('TACKLE1_URL'), token1, 
 
 # Dump steps
 if cmdWanted(args, "dump"):
-    print("Dump Tackle objects..")
+    print("Dumping Tackle objects")
     tackle12import.loadTackle2Seeds()
     tackle12import.dumpTackle1()
-    print("Writing JSON data files into %s.." % dataDir)
+    print("Writing JSON data files into %s" % dataDir)
     tackle12import.store()
 
 # Upload steps
 if cmdWanted(args, "upload"):
-    print("Uploading data to Tackle2..")
+    print("Uploading data to Tackle2")
     tackle12import.preImportCheck()
     tackle12import.uploadTackle2()
 
 # Clean uploaded objects
 if cmdWanted(args, "clean"):
-    print("Cleaning data uploaded to Tackle2..")
+    print("Cleaning data uploaded to Tackle2")
     tackle12import.cleanTackle2()
 
 ###############################################################################
