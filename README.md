@@ -1,5 +1,9 @@
 # tackle-tool-12-to-20
 
+This tool was merged to https://github.com/konveyor/tackle2-hub repository via https://github.com/konveyor/tackle2-hub/pull/71. This repo is archived now.
+
+## Obsolete below
+
 A tool migrating Konveyor Tackle 1.2 data into Tackle 2.0 written as a Python script. For more details about the Tackle project, see [Tackle2-Hub README](https://github.com/konveyor/tackle2-hub) or https://github.com/konveyor/tackle-documentation.
 
 ## Usage
